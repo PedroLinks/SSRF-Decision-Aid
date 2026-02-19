@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSRF Decision Aid v2 — Multi-Guideline</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  background: #0a0f1a;
+  color: #e2e8f0;
+  min-height: 100vh;
+  padding: 24px 16px 40px;
+}
+.container { max-width: 800px; margin: 0 auto; }
+
+/* ── HEADER ── */
+.header { text-align: center; margin-bottom: 24px; }
+.header-icon { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.icon-box {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6, #0ea5e9);
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+}
+.header-title { font-size: 22px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; }
+.header-sub { font-size: 11px; color: #64748b; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px; }
+.header-desc { font-size: 12px; color: #64748b; max-width: 520px; margin: 8px auto 0; line-height: 1.7; }
+.warn-text { color: #f59e0b; }
+.version-pill {
+  display: inline-block; background: #1e3a5f; color: #60a5fa;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 3px 10px; border-radius: 999px; margin-top: 6px; text-transform: uppercase;
+}
+
+/* ── SOURCE PILLS ── */
+.source-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+.source-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: #111827; border: 1px solid #1e3a5f;
+  border-radius: 999px; padding: 4px 10px; font-size: 10px; color: #94a3b8;
+  letter-spacing: 0.05em; font-weight: 600;
+}
+.source-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── SECTION ── */
+.section {
+  background: #1a2335; border: 1px solid #1e3a5f;
+  border-radius: 12px; margin-bottom: 16px; overflow: hidden;
+}
+.section-header {
+  border-bottom: 1px solid #1e3a5f; padding: 11px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.section-header-left { display: flex; align-items: center; gap: 9px; }
+.section-bar { width: 4px; height: 18px; border-radius: 2px; flex-shrink: 0; }
+.section-title { font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.section-body { padding: 14px 18px; }
+
+/* ── GUIDELINE TAG ── */
+.gtag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px; flex-shrink: 0;
+}
+.gtag-both { background: #10b98120; color: #10b981; border: 1px solid #10b98140; }
+.gtag-cwis { background: #3b82f620; color: #60a5fa; border: 1px solid #3b82f640; }
+.gtag-east { background: #a855f720; color: #c084fc; border: 1px solid #a855f740; }
+.gtag-wses { background: #f59e0b20; color: #fbbf24; border: 1px solid #f59e0b40; }
+
+/* ── TOGGLE ── */
+.toggle {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 9px 11px; margin-bottom: 7px; border-radius: 8px;
+  cursor: pointer; border: 1px solid #1e3a5f;
+  transition: all 0.15s ease; user-select: none; background: transparent;
+}
+.toggle:last-of-type { margin-bottom: 0; }
+.toggle.checked-blue { background: #3b82f612; border-color: #3b82f6; }
+.toggle.checked-red  { background: #ef444412; border-color: #ef4444; }
+.toggle.checked-amber{ background: #f59e0b12; border-color: #f59e0b; }
+.toggle-label { font-size: 13.5px; color: #e2e8f0; line-height: 1.3; }
+.toggle.checked-blue .toggle-label,
+.toggle.checked-red .toggle-label,
+.toggle.checked-amber .toggle-label { font-weight: 600; }
+.toggle-sub { font-size: 11px; color: #64748b; margin-top: 3px; line-height: 1.4; }
+.toggle-text { flex: 1; padding-right: 10px; }
+.checkbox {
+  width: 19px; height: 19px; min-width: 19px; border-radius: 4px;
+  border: 2px solid #475569; display: flex; align-items: center;
+  justify-content: center; margin-top: 1px; transition: all 0.15s ease; background: transparent;
+}
+.checkbox.blue  { border-color: #3b82f6; background: #3b82f6; }
+.checkbox.red   { border-color: #ef4444; background: #ef4444; }
+.checkbox.amber { border-color: #f59e0b; background: #f59e0b; }
+.checkbox svg { display: none; }
+.checkbox.blue svg, .checkbox.red svg, .checkbox.amber svg { display: block; }
+.ck { width:11px;height:11px;viewBox:"0 0 11 11" }
+
+/* ── DIVERGENCE ALERT ── */
+.diverge-box {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 11px; margin-top: 9px; border-radius: 7px;
+  background: #a855f715; border-left: 3px solid #a855f7;
+  font-size: 11px; color: #c084fc; line-height: 1.5;
+}
+.diverge-box .div-icon { flex-shrink: 0; font-size: 13px; }
+
+/* ── CONTUSION ALERT ── */
+.contusion-box {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 11px; margin-top: 9px; border-radius: 7px;
+  background: #f59e0b12; border-left: 3px solid #f59e0b;
+  font-size: 11px; color: #fcd34d; line-height: 1.5;
+}
+
+/* ── SUB-LABEL ── */
+.sub-label {
+  color: #64748b; font-size: 11.5px; margin: 9px 0 6px; padding-left: 3px;
+  display: flex; align-items: center; gap: 7px;
+}
+
+/* ── BADGE ── */
+.badge {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+}
+
+/* ── INPUT ── */
+.input-label { color: #64748b; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+input[type=number] {
+  background: #111827; border: 1px solid #1e3a5f; border-radius: 8px;
+  padding: 9px 13px; color: #e2e8f0; font-size: 14px;
+  width: 100%; outline: none; font-family: inherit;
+}
+input[type=number]:focus { border-color: #3b82f6; }
+
+/* ── EVIDENCE LEGEND ── */
+.evid-legend {
+  background: #111827; border: 1px solid #1e3a5f;
+  border-radius: 10px; padding: 13px 16px; margin-bottom: 16px;
+}
+.evid-legend-title { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 10px; font-weight: 700; }
+.evid-legend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.evid-leg-card { padding: 8px 10px; border-radius: 7px; border-left: 3px solid; }
+.evid-leg-card.a { background: #10b98110; border-color: #10b981; }
+.evid-leg-card.b { background: #3b82f610; border-color: #3b82f6; }
+.evid-leg-card.c { background: #f59e0b10; border-color: #f59e0b; }
+.evid-leg-head { font-size: 11px; font-weight: 800; margin-bottom: 3px; }
+.evid-leg-card.a .evid-leg-head { color: #10b981; }
+.evid-leg-card.b .evid-leg-head { color: #60a5fa; }
+.evid-leg-card.c .evid-leg-head { color: #f59e0b; }
+.evid-leg-body { font-size: 10.5px; color: #94a3b8; line-height: 1.4; }
+
+/* ── EVIDENCE STRIP ── */
+.evid-strip {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 9px 11px; margin-top: 10px; border-radius: 8px; border-left: 3px solid;
+  font-size: 11px; line-height: 1.5;
+}
+.evid-strip .evid-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+.evid-strip .evid-text { flex: 1; }
+.evid-strip .evid-level {
+  font-weight: 800; font-size: 11px; letter-spacing: 0.05em;
+  flex-shrink: 0; padding: 2px 7px; border-radius: 4px; align-self: flex-start;
+}
+.evid-a { background: #10b98112; border-color: #10b981; color: #6ee7b7; }
+.evid-a .evid-level { background: #10b98120; color: #10b981; }
+.evid-b { background: #3b82f612; border-color: #3b82f6; color: #93c5fd; }
+.evid-b .evid-level { background: #3b82f620; color: #60a5fa; }
+.evid-c { background: #f59e0b12; border-color: #f59e0b; color: #fcd34d; }
+.evid-c .evid-level { background: #f59e0b20; color: #f59e0b; }
+
+/* ── EFFECT SIZE GRID ── */
+.effect-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.effect-card {
+  background: #111827; border: 1px solid #1e3a5f; border-radius: 7px;
+  padding: 7px 8px; text-align: center;
+}
+.effect-val { font-size: 15px; font-weight: 800; color: #10b981; line-height: 1; }
+.effect-lbl { font-size: 9.5px; color: #64748b; margin-top: 3px; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.04em; }
+.effect-src { font-size: 9px; color: #475569; margin-top: 2px; }
+
+/* ── RESULT BOX ── */
+.result { border-radius: 14px; padding: 18px 22px; margin-bottom: 16px; border: 2px solid; }
+.result-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.result-label { font-size: 10px; color: #64748b; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px; }
+.result-rec { font-size: 21px; font-weight: 900; letter-spacing: -0.01em; line-height: 1.1; }
+.result-detail { font-size: 13px; color: #e2e8f0; line-height: 1.65; opacity: 0.9; }
+.timing-box {
+  margin-top: 10px; padding: 8px 12px; background: #111827;
+  border-radius: 7px; font-size: 12.5px; color: #e2e8f0; border-left: 3px solid #3b82f6;
+}
+.result-right { text-align: right; }
+.result-warn { font-size: 11.5px; color: #f59e0b; }
+.result-ok   { font-size: 11.5px; color: #10b981; margin-top: 3px; }
+.result-info { font-size: 11.5px; color: #60a5fa; margin-top: 3px; }
+
+/* ── GUIDELINE COMPARISON PANEL ── */
+.compare-panel {
+  background: #111827; border: 1px solid #1e3a5f;
+  border-radius: 10px; padding: 13px 15px; margin-top: 10px;
+}
+.compare-title { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 700; margin-bottom: 9px; }
+.compare-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11.5px; }
+.compare-row:last-child { margin-bottom: 0; }
+.compare-src { font-weight: 700; min-width: 80px; }
+.compare-agree { color: #10b981; }
+.compare-caution { color: #f59e0b; }
+.compare-nodata { color: #64748b; }
+
+/* ── SUMMARY GRID ── */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.summary-card { background: #1a2335; border: 1px solid #1e3a5f; border-radius: 9px; padding: 12px 14px; }
+.summary-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+.summary-nums { display: flex; align-items: baseline; gap: 3px; }
+.summary-big { font-size: 26px; font-weight: 800; }
+.summary-of { font-size: 13px; color: #64748b; }
+.progress-track { height: 3px; background: #111827; border-radius: 999px; margin-top: 7px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+
+/* ── TAXONOMY NOTE ── */
+.taxonomy-box {
+  background: #0ea5e910; border: 1px solid #0ea5e930;
+  border-radius: 8px; padding: 9px 12px; margin-top: 9px;
+  font-size: 11px; color: #7dd3fc; line-height: 1.5;
+}
+.taxonomy-box strong { color: #38bdf8; }
+
+/* ── DISCLAIMER ── */
+.disclaimer {
+  background: #111827; border: 1px solid #1e3a5f;
+  border-radius: 9px; padding: 11px 14px;
+  font-size: 10.5px; color: #64748b; line-height: 1.65; text-align: center;
+}
+.disclaimer strong { color: #94a3b8; }
+
+/* ── RESET BTN ── */
+.reset-btn {
+  display: block; width: 100%; margin-bottom: 16px;
+  background: #1a2335; border: 1px solid #1e3a5f; border-radius: 8px;
+  padding: 9px; color: #64748b; font-size: 12px; font-family: inherit;
+  cursor: pointer; transition: all 0.15s; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600;
+}
+.reset-btn:hover { background: #1e3a5f; color: #94a3b8; }
+
+@media (max-width: 500px) {
+  .evid-legend-grid { grid-template-columns: 1fr; }
+  .effect-grid { grid-template-columns: repeat(2, 1fr); }
+  .summary-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-icon">
+    <div class="icon-box">🦴</div>
+    <div>
+      <div class="header-title">SSRF Decision Aid</div>
+      <div class="header-sub">Multi-Guideline Synthesis</div>
+    </div>
+  </div>
+  <div class="header-desc">
+    Surgical Stabilization of Rib Fractures — AI-assisted clinical decision support.<br>
+    <span class="warn-text">Not a substitute for clinical judgment.</span>
+  </div>
+  <div class="version-pill">v2.0 — Updated Feb 2026</div>
+</div>
+
+<!-- SOURCE PILLS -->
+<div class="source-row">
+  <div class="source-pill"><div class="source-dot" style="background:#3b82f6"></div>CWIS 2025 (Bauman et al., J Trauma)</div>
+  <div class="source-pill"><div class="source-dot" style="background:#a855f7"></div>EAST 2017 (Kasotakis et al., J Trauma)</div>
+  <div class="source-pill"><div class="source-dot" style="background:#f59e0b"></div>WSES/CWIS 2024 (Sermonesi et al.)</div>
+  <div class="source-pill"><div class="source-dot" style="background:#10b981"></div>Pieracci NON-FLAIL RCT 2020</div>
+  <div class="source-pill"><div class="source-dot" style="background:#ec4899"></div>Leinicke Meta-Analysis 2013</div>
+</div>
+
+<!-- EVIDENCE LEGEND -->
+<div class="evid-legend">
+  <div class="evid-legend-title">Evidence Level Key</div>
+  <div class="evid-legend-grid">
+    <div class="evid-leg-card a">
+      <div class="evid-leg-head">Level A — Strong</div>
+      <div class="evid-leg-body">Multiple RCTs, Cochrane review, meta-analyses. High confidence in effect estimate.</div>
+    </div>
+    <div class="evid-leg-card b">
+      <div class="evid-leg-head">Level B — Moderate</div>
+      <div class="evid-leg-body">Single RCT or prospective controlled trial ± retrospective data.</div>
+    </div>
+    <div class="evid-leg-card c">
+      <div class="evid-leg-head">Level C — Limited</div>
+      <div class="evid-leg-body">Retrospective series or expert consensus only. Heavy clinical judgment required.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PATIENT STATUS -->
+<div class="section">
+  <div class="section-header" style="background:linear-gradient(90deg,#0ea5e918,transparent)">
+    <div class="section-header-left">
+      <div class="section-bar" style="background:#0ea5e9"></div>
+      <span class="section-title" style="color:#0ea5e9">Patient Status</span>
+    </div>
+    <span class="gtag gtag-both">CWIS · EAST</span>
+  </div>
+  <div class="section-body">
+    <div class="toggle" id="t-vent" onclick="tog('vent')">
+      <div class="toggle-text">
+        <div class="toggle-label">Patient is mechanically ventilated</div>
+        <div class="toggle-sub">Changes indication criteria and timing recommendations across all guidelines</div>
+      </div>
+      <div class="checkbox" id="cb-vent"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-contusion" onclick="tog('contusion')">
+      <div class="toggle-text">
+        <div class="toggle-label">Pulmonary contusion present</div>
+        <div class="toggle-sub">Liu RCT (2019): vent/ICU benefit of SSRF may be attenuated in patients with concomitant pulmonary contusion</div>
+      </div>
+      <div class="checkbox" id="cb-contusion"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<!-- ABSOLUTE CONTRAINDICATIONS -->
+<div class="section">
+  <div class="section-header" style="background:linear-gradient(90deg,#ef444418,transparent)">
+    <div class="section-header-left">
+      <div class="section-bar" style="background:#ef4444"></div>
+      <span class="section-title" style="color:#ef4444">Absolute Contraindications</span>
+    </div>
+    <span class="gtag gtag-both">CWIS · EAST</span>
+  </div>
+  <div class="section-body">
+    <div class="toggle" id="t-shock" onclick="tog('shock',true)">
+      <div class="toggle-text"><div class="toggle-label">Shock / Ongoing Resuscitation</div><div class="toggle-sub">Hemodynamically unstable. Note: stable on vasopressors may still qualify — individualize per CWIS 2025.</div></div>
+      <div class="checkbox" id="cb-shock"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-severeTBI" onclick="tog('severeTBI',true)">
+      <div class="toggle-text"><div class="toggle-label">Severe TBI</div><div class="toggle-sub">GCS &lt;8 or intracranial hypertension persisting &gt;24h. CWIS-TBI study: SSRF still ↓ pneumonia in non-flail TBI (OR 0.29) — reassess after 24h if GCS improves.</div></div>
+      <div class="checkbox" id="cb-severeTBI"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-outsideRibs" onclick="tog('outsideRibs',true)">
+      <div class="toggle-text"><div class="toggle-label">Fractures Outside Ribs 3–10</div><div class="toggle-sub">Excluded from all prospective trials. CWIS/EAST agreement. Ribs 1–2 and 11–12 carry different biomechanical and neurovascular risk profiles.</div></div>
+      <div class="checkbox" id="cb-outsideRibs"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-acuteMI" onclick="tog('acuteMI',true)">
+      <div class="toggle-text"><div class="toggle-label">Acute Myocardial Infarction</div><div class="toggle-sub">Anticoagulation requirement and surgical cardiac stress. Absolute per CWIS 2025 and EAST 2017.</div></div>
+      <div class="checkbox" id="cb-acuteMI"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<!-- RELATIVE CONTRAINDICATIONS -->
+<div class="section">
+  <div class="section-header" style="background:linear-gradient(90deg,#f59e0b18,transparent)">
+    <div class="section-header-left">
+      <div class="section-bar" style="background:#f59e0b"></div>
+      <span class="section-title" style="color:#f59e0b">Relative Contraindications</span>
+    </div>
+    <span class="gtag gtag-both">CWIS · EAST</span>
+  </div>
+  <div class="section-body">
+    <div class="toggle" id="t-ageLt18" onclick="tog('ageLt18')">
+      <div class="toggle-text"><div class="toggle-label">Age &lt; 18 years</div><div class="toggle-sub">Bone growth concerns; FDA exclusion for most plating systems. Case reports exist for severe pediatric injuries.</div></div>
+      <div class="checkbox" id="cb-ageLt18"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-comorbidities" onclick="tog('comorbidities')">
+      <div class="toggle-text"><div class="toggle-label">Significant Comorbidities / Frailty</div><div class="toggle-sub">Active malignancy, terminal illness, severe cardiopulmonary disease. Age ≥80 = higher risk per CWIS 2025 — though elderly may benefit more (less physiologic reserve to tolerate non-op).</div></div>
+      <div class="checkbox" id="cb-comorbidities"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-mildTBI" onclick="tog('mildTBI')">
+      <div class="toggle-text"><div class="toggle-label">Mild to Moderate TBI (GCS 9–15)</div><div class="toggle-sub">Evaluate individually. CWIS-TBI retrospective data: SSRF associated with ↓ pneumonia risk even in moderate TBI (non-flail OR 0.29, p=0.013) without hampering neurological recovery.</div></div>
+      <div class="checkbox" id="cb-mildTBI"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-spinal" onclick="tog('spinal')">
+      <div class="toggle-text"><div class="toggle-label">Unstable Spinal Fracture / SCI</div><div class="toggle-sub">Stabilize spine first. Paraplegia may still benefit from SSRF (intact chest wall sensation); quadriplegia benefit limited.</div></div>
+      <div class="checkbox" id="cb-spinal"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-empyema" onclick="tog('empyema')">
+      <div class="toggle-text"><div class="toggle-label">Empyema</div><div class="toggle-sub">Active chest space infection — hardware infection risk. Pneumonia alone does not contraindicate per CWIS 2025.</div></div>
+      <div class="checkbox" id="cb-empyema"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-radiation" onclick="tog('radiation')">
+      <div class="toggle-text"><div class="toggle-label">Prior Chest Wall Radiation / Pathologic Fracture</div><div class="toggle-sub">High hardware failure risk. Use 3D CT reconstruction to assess bone quality per CWIS 2025.</div></div>
+      <div class="checkbox" id="cb-radiation"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+</div>
+
+<!-- CHEST WALL INSTABILITY -->
+<div class="section">
+  <div class="section-header" style="background:linear-gradient(90deg,#10b98118,transparent)">
+    <div class="section-header-left">
+      <div class="section-bar" style="background:#10b981"></div>
+      <span class="section-title" style="color:#10b981">Indication: Chest Wall Instability</span>
+    </div>
+    <span class="gtag gtag-both">CWIS · EAST</span>
+  </div>
+  <div class="section-body">
+    <div class="toggle" id="t-flail" onclick="tog('flail')">
+      <div class="toggle-text"><div class="toggle-label">Flail Chest</div><div class="toggle-sub">≥3 consecutive ipsilateral ribs fractured in 2 locations ± paradoxical motion. Strongest evidence indication.</div></div>
+      <div class="checkbox" id="cb-flail"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-offset" onclick="tog('offset')">
+      <div class="toggle-text">
+        <div class="toggle-label">Offset / Bi-cortical Fractures</div>
+        <div class="toggle-sub">≥3 ipsilateral fractures with 100% displacement (no cross-sectional overlap) on axial CT. Updated CWIS/ASER 2025 taxonomy: "displaced" = no overlap; "offset" = &lt;90% overlap.</div>
+      </div>
+      <div class="checkbox" id="cb-offset"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-paradoxical" onclick="tog('paradoxical')">
+      <div class="toggle-text"><div class="toggle-label">Clinical Paradoxical Motion</div><div class="toggle-sub">Observed paradoxical chest wall movement on physical exam.</div></div>
+      <div class="checkbox" id="cb-paradoxical"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-clicking" onclick="tog('clicking')">
+      <div class="toggle-text"><div class="toggle-label">Instability / Clicking on Palpation</div><div class="toggle-sub">Crepitus, clicking, or instability on exam or as reported by patient.</div></div>
+      <div class="checkbox" id="cb-clicking"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+
+    <!-- Evidence strip for instability -->
+    <div class="evid-strip evid-a">
+      <span class="evid-icon">📊</span>
+      <span class="evid-text">
+        <strong>Flail chest:</strong> Supported by 3 RCTs, Cochrane review (Cataneo 2015), and Leinicke meta-analysis (Ann Surg 2013, n=431).
+        Marasco RCT (J Am Coll Surg 2013): shorter ICU stay (285 vs 359 hrs, p=0.03), ↓ NIV requirement.
+        Liu RCT (J Surg Res 2019): ↓ ARDS (28% vs 60%), ↓ pneumonia (48% vs 80%).
+        <strong>CWIS 2025 and EAST 2017 both recommend SSRF for flail chest.</strong>
+      </span>
+      <span class="evid-level">LEVEL A</span>
+    </div>
+
+    <!-- Effect sizes for flail -->
+    <div id="effect-flail" style="display:none;">
+      <div style="font-size:10px;color:#64748b;margin-top:10px;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.07em;">Pooled Effect Sizes — Flail Chest SSRF vs. Non-Op (Leinicke Meta-Analysis, Ann Surg 2013)</div>
+      <div class="effect-grid">
+        <div class="effect-card"><div class="effect-val">−4.5d</div><div class="effect-lbl">Vent Days</div><div class="effect-src">95% CI −5.5,−3.5</div></div>
+        <div class="effect-card"><div class="effect-val">−3.4d</div><div class="effect-lbl">ICU LOS</div><div class="effect-src">95% CI −6.0,−0.8</div></div>
+        <div class="effect-card"><div class="effect-val">RR 0.45</div><div class="effect-lbl">Pneumonia</div><div class="effect-src">Leinicke 2013</div></div>
+        <div class="effect-card"><div class="effect-val">RR 0.25</div><div class="effect-lbl">Tracheostomy</div><div class="effect-src">Leinicke 2013</div></div>
+      </div>
+    </div>
+
+    <!-- Updated taxonomy note -->
+    <div class="taxonomy-box" style="margin-top:10px;">
+      <strong>2025 CWIS/ASER Fracture Taxonomy Update:</strong> Non-displaced = ≥90% cross-sectional overlap · Offset = &lt;90% overlap · Displaced = no overlap (0%). Use axial CT for classification. Prior literature used variable displacement thresholds — confirm using updated definitions.
+    </div>
+  </div>
+</div>
+
+<!-- NON-VENTILATED: 3+ DISPLACED -->
+<div class="section" id="sec-nonvent">
+  <div class="section-header" style="background:linear-gradient(90deg,#3b82f618,transparent)">
+    <div class="section-header-left">
+      <div class="section-bar" style="background:#3b82f6"></div>
+      <span class="section-title" style="color:#3b82f6">Indication: ≥3 Displaced + Pulmonary Derangements</span>
+    </div>
+    <span class="gtag gtag-cwis">CWIS 2025</span>
+  </div>
+  <div class="section-body">
+    <div class="toggle" id="t-displaced" onclick="tog('displaced')">
+      <div class="toggle-text">
+        <div class="toggle-label">≥3 ipsilateral rib fractures displaced ≥50% rib width (ribs 3–10)</div>
+        <div class="toggle-sub">On axial CT, after locoregional anesthesia and multimodal pain therapy initiated. Fractures need not be consecutive (Pieracci NON-FLAIL, 2020).</div>
+      </div>
+      <div class="checkbox" id="cb-displaced"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+
+    <div id="pulm-section" style="display:none;margin-top:8px;">
+      <div class="sub-label">Pulmonary Derangements — need ≥2 of 4: <span class="badge" id="pulm-badge" style="color:#f59e0b;background:#f59e0b22;">0/4</span></div>
+      <div class="toggle" id="t-rr20" onclick="tog('rr20')">
+        <div class="toggle-text"><div class="toggle-label">Respiratory Rate ≥ 20</div></div>
+        <div class="checkbox" id="cb-rr20"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div class="toggle" id="t-spirometry" onclick="tog('spirometry')">
+        <div class="toggle-text"><div class="toggle-label">Incentive Spirometry &lt; 50% predicted</div></div>
+        <div class="checkbox" id="cb-spirometry"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div class="toggle" id="t-pain" onclick="tog('pain')">
+        <div class="toggle-text"><div class="toggle-label">Pain Score &gt; 5/10 (NRS)</div></div>
+        <div class="checkbox" id="cb-pain"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+      <div class="toggle" id="t-cough" onclick="tog('cough')">
+        <div class="toggle-text"><div class="toggle-label">Poor Cough</div><div class="toggle-sub">As documented by respiratory therapy assessment.</div></div>
+        <div class="checkbox" id="cb-cough"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+    </div>
+
+    <!-- EAST divergence note -->
+    <div class="diverge-box">
+      <span class="div-icon">⚡</span>
+      <span><strong>EAST vs. CWIS divergence:</strong> EAST 2017 found <em>insufficient evidence</em> to recommend SSRF for non-flail fractures and made no recommendation either way. CWIS 2025 and the Pieracci NON-FLAIL prospective trial (J Trauma 2020, Level II) now support this indication. This divergence should be acknowledged in clinical documentation and research.</span>
+    </div>
+
+    <div class="evid-strip evid-b" style="margin-top:10px;">
+      <span class="evid-icon">📋</span>
+      <span class="evid-text">
+        <strong>Pieracci NON-FLAIL trial</strong> (J Trauma 2020, Level II, 12 centers, n=110): SSRF within 72h improved pain at 2-week follow-up (primary outcome), ↓ pleural space complications, ↓ respiratory disability-related QoL. No significant mortality or vent-day benefit vs. non-op in non-flail. Pain and QoL benefits well-supported; mortality reduction not demonstrated.
+      </span>
+      <span class="evid-level">LEVEL B</span>
+    </div>
+  </div>
+</div>
+
+<!-- VENTILATED: FAILURE TO WEAN -->
+<div class="section" id="sec-vent" style="display:none;">
+  <div class="section-header" style="background:linear-gradient(90deg,#3b82f618,transparent)">
+    <div class="section-header-left">
+      <div class="section-bar" style="background:#3b82f6"></div>
+      <span class="section-title" style="color:#3b82f6">Indication: Failure to Wean (Ventilated)</span>
+    </div>
+    <span class="gtag gtag-cwis">CWIS 2025</span>
+  </div>
+  <div class="section-body">
+    <div class="toggle" id="t-failedExtub" onclick="tog('failedExtub')">
+      <div class="toggle-text"><div class="toggle-label">Failed Extubation Requiring Reintubation</div><div class="toggle-sub">Must be clinically determined to be related to rib fractures, not another cause (e.g. secretions, encephalopathy).</div></div>
+      <div class="checkbox" id="cb-failedExtub"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="toggle" id="t-noSBT" onclick="tog('noSBT')">
+      <div class="toggle-text"><div class="toggle-label">Unable to Progress to SBT after 48 hours</div><div class="toggle-sub">Clinically determined to be rib fracture-driven. Exclude other wean-failure etiologies.</div></div>
+      <div class="checkbox" id="cb-noSBT"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="sub-label">SBT attempted but failed at 60 min — ≥2 of the following: <span class="badge" id="sbt-badge" style="color:#64748b;background:#64748b22;">0/6</span></div>
+    <div class="toggle" id="t-sbt-rr" onclick="tog('sbt-rr')"><div class="toggle-text"><div class="toggle-label">RR &gt; 35</div></div><div class="checkbox" id="cb-sbt-rr"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+    <div class="toggle" id="t-sbt-hr" onclick="tog('sbt-hr')"><div class="toggle-text"><div class="toggle-label">HR &gt; 140</div></div><div class="checkbox" id="cb-sbt-hr"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+    <div class="toggle" id="t-sbt-spo2" onclick="tog('sbt-spo2')"><div class="toggle-text"><div class="toggle-label">SpO₂ &lt; 90%</div></div><div class="checkbox" id="cb-sbt-spo2"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+    <div class="toggle" id="t-sbt-rsbi" onclick="tog('sbt-rsbi')"><div class="toggle-text"><div class="toggle-label">RSBI &gt; 105</div><div class="toggle-sub">Rapid Shallow Breathing Index = RR ÷ Tidal Volume (L)</div></div><div class="checkbox" id="cb-sbt-rsbi"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+    <div class="toggle" id="t-sbt-anxiety" onclick="tog('sbt-anxiety')"><div class="toggle-text"><div class="toggle-label">Anxiety</div></div><div class="checkbox" id="cb-sbt-anxiety"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+    <div class="toggle" id="t-sbt-diaphoresis" onclick="tog('sbt-diaphoresis')"><div class="toggle-text"><div class="toggle-label">Diaphoresis / Agitation</div></div><div class="checkbox" id="cb-sbt-diaphoresis"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+
+    <div class="evid-strip evid-c" style="margin-top:10px;">
+      <span class="evid-icon">⚠️</span>
+      <span class="evid-text">
+        <strong>Failure-to-wean indication:</strong> Primarily retrospective data and expert consensus (CWIS 2025). Physiological rationale is sound but prospective validation limited. Critically confirm rib fractures are the <em>primary</em> driver of wean failure — exclude secretion burden, encephalopathy, diaphragmatic injury, and ventilator-associated complications before attributing to chest wall.
+      </span>
+      <span class="evid-level">LEVEL C</span>
+    </div>
+  </div>
+</div>
+
+<!-- TIMING -->
+<div class="section">
+  <div class="section-header" style="background:linear-gradient(90deg,#0ea5e918,transparent)">
+    <div class="section-header-left">
+      <div class="section-bar" style="background:#0ea5e9"></div>
+      <span class="section-title" style="color:#0ea5e9">Timing Assessment</span>
+    </div>
+    <span class="gtag gtag-both">CWIS · EAST</span>
+  </div>
+  <div class="section-body">
+    <div style="margin-bottom:12px;">
+      <label class="input-label">Hours from Injury to Planned Surgery</label>
+      <input type="number" id="hours-input" min="0" placeholder="e.g. 18" oninput="updateResult()">
+    </div>
+    <div class="toggle" id="t-priority" onclick="tog('priority')">
+      <div class="toggle-text">
+        <div class="toggle-label">Higher Priority Injuries Present</div>
+        <div class="toggle-sub">Open abdomen · Unstable spine requiring fixation · Pelvic external fixator precluding positioning · Significant vascular injury</div>
+      </div>
+      <div class="checkbox" id="cb-priority"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div style="margin-top:10px; padding:9px 12px; background:#111827; border-radius:7px; font-size:11px; color:#94a3b8; line-height:1.6; border-left:3px solid #0ea5e9;">
+      <strong style="color:#7dd3fc;">CWIS 2025 Timing:</strong> Non-vent: &lt;24h optimal, &lt;72h acceptable. Vent/flail: earliest feasible. Vent/non-flail: &lt;72h. SSRF &gt;72h still indicated for flail/vent-failure. Delay if higher-priority injuries present.
+      <br><strong style="color:#7dd3fc;">Pieracci multicenter timing study</strong> (J Trauma 2018): &lt;24h may be superior to &lt;72h. CWIS 2025 reinforces this.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ RESULT BOX ═══════ -->
+<div class="result" id="result-box" style="background:#64748b22;border-color:#64748b;">
+  <div class="result-header">
+    <div>
+      <div class="result-label">Multi-Guideline Recommendation</div>
+      <div class="result-rec" id="result-rec" style="color:#64748b;">NON-OPERATIVE</div>
+    </div>
+    <div class="result-right" id="result-right"></div>
+  </div>
+  <div class="result-detail" id="result-detail">Current data does not meet SSRF criteria. Optimize multimodal analgesia, locoregional therapy, and reassess.</div>
+  <div class="timing-box" id="timing-box" style="display:none;"></div>
+  <div id="evid-result-box" style="display:none;"></div>
+  <div id="compare-panel-box" style="display:none;"></div>
+  <div id="contusion-warning" style="display:none;" class="contusion-box">
+    <span>⚠️</span>
+    <span style="margin-left:6px;"><strong>Pulmonary Contusion Note:</strong> Liu RCT (J Surg Res 2019) found that the vent/ICU LOS benefit of SSRF was not observed in patients with concomitant pulmonary contusion. Proceed with realistic outcome expectations — chest wall stabilization still beneficial for pain and mechanics but may not shorten vent course in this subgroup.</span>
+  </div>
+</div>
+
+<!-- SUMMARY GRID -->
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="summary-label">Absolute Contraindications</div>
+    <div class="summary-nums"><span class="summary-big" id="sum-abs" style="color:#64748b">0</span><span class="summary-of">/ 4</span></div>
+    <div class="progress-track"><div class="progress-fill" id="prog-abs" style="width:0%;background:#ef4444;"></div></div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label">Relative Contraindications</div>
+    <div class="summary-nums"><span class="summary-big" id="sum-rel" style="color:#64748b">0</span><span class="summary-of">/ 6</span></div>
+    <div class="progress-track"><div class="progress-fill" id="prog-rel" style="width:0%;background:#f59e0b;"></div></div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label">Instability Criteria</div>
+    <div class="summary-nums"><span class="summary-big" id="sum-inst" style="color:#64748b">0</span><span class="summary-of">/ 4</span></div>
+    <div class="progress-track"><div class="progress-fill" id="prog-inst" style="width:0%;background:#10b981;"></div></div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label" id="sum-pulm-label">Pulmonary Derangements</div>
+    <div class="summary-nums"><span class="summary-big" id="sum-pulm" style="color:#64748b">0</span><span class="summary-of" id="sum-pulm-of">/ 4</span></div>
+    <div class="progress-track"><div class="progress-fill" id="prog-pulm" style="width:0%;background:#3b82f6;"></div></div>
+  </div>
+</div>
+
+<!-- RESET -->
+<button class="reset-btn" onclick="resetAll()">↺ Reset All Fields</button>
+
+<!-- DISCLAIMER -->
+<div class="disclaimer">
+  <strong>Sources:</strong> CWIS 2025 (Bauman et al., J Trauma 99:522–532) · EAST 2017 (Kasotakis et al., J Trauma 82:618–626) · WSES/CWIS 2024 (Sermonesi et al., World J Emerg Surg) · Pieracci NON-FLAIL (J Trauma 2020;88:249–257) · Leinicke meta-analysis (Ann Surg 2013;258:914–921) · Marasco RCT (J Am Coll Surg 2013;216:924–932) · Liu RCT (J Surg Res 2019;242:223–230) · CWIS-TBI subgroup analysis.<br><br>
+  Clinical decision support tool only. Final surgical judgment rests with the treating physician. Not validated for independent use as a patient-selection instrument without prospective institutional study.
+</div>
+
+</div><!-- /container -->
+
+<script>
+const state = {
+  vent:false, contusion:false,
+  shock:false, severeTBI:false, outsideRibs:false, acuteMI:false,
+  ageLt18:false, comorbidities:false, mildTBI:false, spinal:false, empyema:false, radiation:false,
+  flail:false, offset:false, paradoxical:false, clicking:false,
+  displaced:false,
+  rr20:false, spirometry:false, pain:false, cough:false,
+  failedExtub:false, noSBT:false,
+  'sbt-rr':false,'sbt-hr':false,'sbt-spo2':false,'sbt-rsbi':false,'sbt-anxiety':false,'sbt-diaphoresis':false,
+  priority:false,
+};
+
+const CHECK_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function tog(key, isDanger=false) {
+  state[key] = !state[key];
+  const cb = document.getElementById('cb-'+key);
+  const t  = document.getElementById('t-'+key);
+  if(state[key]) {
+    cb.className = isDanger ? 'checkbox red' : 'checkbox blue';
+    t.className  = isDanger ? 'toggle checked-red' : 'toggle checked-blue';
+  } else {
+    cb.className = 'checkbox';
+    t.className  = 'toggle';
+  }
+  updateResult();
+}
+
+function resetAll() {
+  Object.keys(state).forEach(k => state[k]=false);
+  document.querySelectorAll('.toggle').forEach(t => t.className='toggle');
+  document.querySelectorAll('.checkbox').forEach(cb => cb.className='checkbox');
+  document.getElementById('hours-input').value='';
+  updateResult();
+}
+
+function updateResult() {
+  const V = state.vent;
+
+  // show/hide sections
+  document.getElementById('sec-nonvent').style.display = V ? 'none':'block';
+  document.getElementById('sec-vent').style.display    = V ? 'block':'none';
+  document.getElementById('pulm-section').style.display = (!V && state.displaced) ? 'block':'none';
+
+  // show effect sizes when flail checked
+  document.getElementById('effect-flail').style.display = state.flail ? 'block':'none';
+
+  // counts
+  const absCount  = [state.shock,state.severeTBI,state.outsideRibs,state.acuteMI].filter(Boolean).length;
+  const relCount  = [state.ageLt18,state.comorbidities,state.mildTBI,state.spinal,state.empyema,state.radiation].filter(Boolean).length;
+  const instCount = [state.flail,state.offset,state.paradoxical,state.clicking].filter(Boolean).length;
+  const pulmCount = [state.rr20,state.spirometry,state.pain,state.cough].filter(Boolean).length;
+  const sbtCount  = [state['sbt-rr'],state['sbt-hr'],state['sbt-spo2'],state['sbt-rsbi'],state['sbt-anxiety'],state['sbt-diaphoresis']].filter(Boolean).length;
+
+  // pulm badge
+  const pb = document.getElementById('pulm-badge');
+  pb.textContent = pulmCount+'/4';
+  pb.style.color = pulmCount>=2 ? '#10b981':'#f59e0b';
+  pb.style.background = pulmCount>=2 ? '#10b98122':'#f59e0b22';
+
+  // sbt badge
+  const sb = document.getElementById('sbt-badge');
+  sb.textContent = sbtCount+'/6';
+  sb.style.color = sbtCount>=2 ? '#10b981':'#64748b';
+  sb.style.background = sbtCount>=2 ? '#10b98122':'#64748b22';
+
+  // logic
+  const absContra    = absCount > 0;
+  const cwInstab     = instCount > 0;
+  const failToWean   = V && (state.failedExtub || state.noSBT || sbtCount>=2);
+  const nonVentInd   = !V && state.displaced && pulmCount>=2;
+  const hasIndication = cwInstab || failToWean || nonVentInd;
+
+  // recommendation
+  let rec, recColor, recBg, detail;
+  if(absContra) {
+    rec='CONTRAINDICATED'; recColor='#ef4444'; recBg='#ef444420';
+    detail='Absolute contraindication present. Resolve underlying issue and reassess. SSRF may be reconsidered once contraindication is addressed (e.g., hemodynamic stabilization, TBI re-evaluation at 24h).';
+  } else if(hasIndication) {
+    if(relCount>=2) {
+      rec='HIGH-RISK SSRF'; recColor='#f59e0b'; recBg='#f59e0b20';
+      detail=`${relCount} relative contraindications present. Individualized risk/benefit analysis required. Multidisciplinary discussion strongly recommended before proceeding. Document decision rationale.`;
+    } else if(relCount===1) {
+      rec='SSRF — PROCEED WITH CAUTION'; recColor='#f59e0b'; recBg='#f59e0b20';
+      detail='Indication met with 1 relative contraindication. Individual case-by-case assessment required. Discuss risk/benefit with patient and team.';
+    } else {
+      rec='SSRF INDICATED'; recColor='#10b981'; recBg='#10b98120';
+      detail='Patient meets CWIS 2025 criteria for surgical stabilization. Proceed with operative planning and timing optimization.';
+    }
+  } else {
+    rec='NON-OPERATIVE'; recColor='#64748b'; recBg='#64748b20';
+    detail='Current data does not meet SSRF criteria. Continue multimodal analgesia, locoregional anesthesia (epidural/serratus/paravertebral), and pulmonary toilet. Reassess if condition changes.';
+  }
+
+  // timing
+  const hrs = parseFloat(document.getElementById('hours-input').value);
+  const timingBox = document.getElementById('timing-box');
+  let timingText='';
+  if(rec.includes('SSRF') && !rec.includes('CONTRA')) {
+    if(state.priority) {
+      timingText='⚠ DELAY — Address higher priority injuries first. Return to SSRF once stabilized.';
+      timingBox.style.cssText='margin-top:10px;padding:8px 12px;border-radius:7px;font-size:12.5px;border-left:3px solid #f59e0b;background:#f59e0b15;color:#fcd34d;';
+    } else if(!isNaN(hrs) && hrs!=='') {
+      timingBox.style.cssText='margin-top:10px;padding:8px 12px;border-radius:7px;font-size:12.5px;border-left:3px solid #0ea5e9;background:#111827;color:#e2e8f0;';
+      if(hrs<=24)      timingText='✓ OPTIMAL — Within 24 hours. Best outcomes per Pieracci timing study (J Trauma 2018).';
+      else if(hrs<=72) timingText='✓ ACCEPTABLE — Within 72-hour window per CWIS 2025 and EAST 2017.';
+      else if(state.flail && V) timingText='⚠ DELAYED (>72h) — Still indicated: flail + ventilator dependence warrants SSRF regardless of time elapsed per CWIS 2025.';
+      else             timingText='⚠ DELAYED — Beyond 72-hour optimal window. Assess ongoing indication and re-evaluate risk/benefit.';
+    }
+  }
+  if(timingText) { timingBox.style.display='block'; timingBox.innerHTML='<strong>Timing:</strong> '+timingText; }
+  else timingBox.style.display='none';
+
+  // apply to DOM
+  const rbox = document.getElementById('result-box');
+  rbox.style.background = recBg;
+  rbox.style.borderColor = recColor;
+  document.getElementById('result-rec').textContent = rec;
+  document.getElementById('result-rec').style.color  = recColor;
+  document.getElementById('result-detail').textContent = detail;
+
+  // right badges
+  let rHTML='';
+  if(relCount>0) rHTML+=`<div class="result-warn">⚠ ${relCount} relative contraindication${relCount>1?'s':''}</div>`;
+  if(hasIndication && !absContra) rHTML+='<div class="result-ok">✓ Indication criteria met</div>';
+  if(nonVentInd && !cwInstab) rHTML+='<div class="result-info">ℹ EAST: no recommendation for non-flail</div>';
+  document.getElementById('result-right').innerHTML=rHTML;
+
+  // evidence panel
+  const eBox = document.getElementById('evid-result-box');
+  if(hasIndication && !absContra) {
+    let eClass, eLevel, eIcon, eMsg;
+    if(cwInstab) {
+      eClass='evid-a'; eLevel='LEVEL A'; eIcon='📊';
+      eMsg='<strong>Chest wall instability:</strong> Strongest evidence base. Supported by 3 RCTs, Cochrane review, and Leinicke meta-analysis (Ann Surg 2013). Both CWIS 2025 and EAST 2017 recommend SSRF. Leinicke pooled data: −4.5 vent days, −3.4 ICU days, pneumonia RR 0.45, tracheostomy RR 0.25.';
+    } else if(nonVentInd) {
+      eClass='evid-b'; eLevel='LEVEL B'; eIcon='📋';
+      eMsg='<strong>Non-flail displaced fractures:</strong> CWIS 2025 supported by Pieracci NON-FLAIL trial (J Trauma 2020, Level II). Primary outcome: ↓ pain at 2 weeks. ↓ pleural complications and ↓ respiratory disability QoL. No mortality or vent-day benefit demonstrated. <strong>EAST 2017 could not offer a recommendation for this indication</strong> — document this divergence.';
+    } else if(failToWean) {
+      eClass='evid-c'; eLevel='LEVEL C'; eIcon='⚠️';
+      eMsg='<strong>Failure to wean:</strong> CWIS 2025 recommendation based on retrospective data and expert consensus. Physiologically sound. Confirm rib fractures are the primary wean-failure driver before operating. Exclude secretion burden, encephalopathy, diaphragm injury. EAST 2017 did not specifically address this indication.';
+    }
+    eBox.style.display='block';
+    eBox.innerHTML=`<div class="evid-strip ${eClass}"><span class="evid-icon">${eIcon}</span><span class="evid-text">${eMsg}</span><span class="evid-level">${eLevel}</span></div>`;
+  } else { eBox.style.display='none'; }
+
+  // guideline comparison panel
+  const cpBox = document.getElementById('compare-panel-box');
+  if(hasIndication && !absContra) {
+    let rows='';
+    if(cwInstab) {
+      rows+=`<div class="compare-row"><span class="compare-src compare-agree">✓ CWIS 2025</span><span>Recommends SSRF for chest wall instability</span></div>`;
+      rows+=`<div class="compare-row"><span class="compare-src compare-agree">✓ EAST 2017</span><span>Conditionally recommends SSRF for flail chest (low evidence quality per GRADE)</span></div>`;
+      rows+=`<div class="compare-row"><span class="compare-src compare-agree">✓ WSES/CWIS 2024</span><span>Supports operative management for chest wall instability</span></div>`;
+    } else if(nonVentInd) {
+      rows+=`<div class="compare-row"><span class="compare-src compare-agree">✓ CWIS 2025</span><span>Recommends SSRF for ≥3 displaced fractures + ≥2 pulmonary derangements</span></div>`;
+      rows+=`<div class="compare-row"><span class="compare-src compare-nodata">— EAST 2017</span><span>Insufficient evidence — no recommendation for non-flail (2017 data predates Pieracci trial)</span></div>`;
+      rows+=`<div class="compare-row"><span class="compare-src compare-caution">~ WSES/CWIS 2024</span><span>Supports with caveats — heterogeneous definitions, variable displacement thresholds across trials</span></div>`;
+    } else if(failToWean) {
+      rows+=`<div class="compare-row"><span class="compare-src compare-agree">✓ CWIS 2025</span><span>Recommends SSRF for failure to wean attributable to rib fractures</span></div>`;
+      rows+=`<div class="compare-row"><span class="compare-src compare-nodata">— EAST 2017</span><span>Did not specifically address failure-to-wean indication</span></div>`;
+      rows+=`<div class="compare-row"><span class="compare-src compare-caution">~ WSES/CWIS 2024</span><span>Supports with requirement to confirm rib fractures as primary wean etiology</span></div>`;
+    }
+    cpBox.style.display='block';
+    cpBox.innerHTML=`<div class="compare-panel"><div class="compare-title">Guideline Alignment</div>${rows}</div>`;
+  } else { cpBox.style.display='none'; }
+
+  // contusion warning
+  const contWarn = document.getElementById('contusion-warning');
+  contWarn.style.display = (state.contusion && hasIndication && !absContra) ? 'flex':'none';
+
+  // summary grid
+  const setS=(id,val,of_,pid,col)=>{ const el=document.getElementById(id); el.textContent=val; el.style.color=val>0?col:'#64748b'; document.getElementById(pid).style.width=(val/of_*100)+'%'; };
+  setS('sum-abs',absCount,4,'prog-abs','#ef4444');
+  setS('sum-rel',relCount,6,'prog-rel','#f59e0b');
+  setS('sum-inst',instCount,4,'prog-inst','#10b981');
+  const pOf = V?8:4;
+  const pVal = V?(sbtCount+(state.failedExtub?1:0)+(state.noSBT?1:0)):pulmCount;
+  document.getElementById('sum-pulm-label').textContent = V?'Wean Failure Criteria':'Pulmonary Derangements';
+  document.getElementById('sum-pulm-of').textContent='/ '+pOf;
+  setS('sum-pulm',pVal,pOf,'prog-pulm','#3b82f6');
+}
+
+updateResult();
+</script>
+</body>
+</html>
